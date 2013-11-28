@@ -7,6 +7,7 @@
 #include <iterator>
 #include "../cxx-prettyprint/prettyprint.hpp"
 #include <assert.h>
+#include <thread>
 
 using uint = unsigned int; 
 
@@ -94,7 +95,32 @@ void radix_sort_binary(std::vector<uint> & list) {
         ones.clear();
     }
 }
-
+template <typename Iter>
+void msd_radix(Iter begin, Iter end, int i = 31) {
+    auto upper = end - 1;
+    auto lower = begin;
+    while (upper != lower) {
+        if ( ((1<<i) & *lower) == 0 ) {
+            //std::iter_swap(temp,begin);
+            ++lower;
+        }
+        else {
+            std::iter_swap(lower,upper);
+            --upper;
+        }
+    }
+    if (i == 0) return;
+    if (((1<<i)&*lower)==0) ++lower;
+    --i;
+    std::thread t1;
+    std::thread t2;
+    if (begin != lower) {
+        msd_radix(begin,lower,i);
+    }
+    if (lower != end) {
+        msd_radix(lower,end,i);
+    }
+}
 int main() {
     //create arrays
     std::vector<uint> v1;
@@ -112,6 +138,7 @@ int main() {
     auto start = std::chrono::system_clock::now();
     radix_sort(v1.begin(),v1.end());
     //radix_sort(v1);
+    //msd_radix(v1.begin(),v1.end());
     auto end = std::chrono::system_clock::now();
     auto radix_time = (end-start).count();
     //
@@ -125,7 +152,7 @@ int main() {
     
     //test with stable_sort
     start = std::chrono::system_clock::now();
-    std::sort(v3.begin(),v3.end());
+    std::stable_sort(v3.begin(),v3.end());
     end = std::chrono::system_clock::now();
     auto std_stable_sort_time = (end-start).count();
     //
