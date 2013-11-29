@@ -170,6 +170,8 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
 //inplace sort
 template <typename Iter>
 void msd16_radix(Iter begin, Iter end, int i = 7) {
+    const size_t use_std_sort = 30;
+    //30 seemed to be a good threshold to use
     std::array<uint,16> digit_count;digit_count.fill(0);
     //count the occurence of each digit to place the iterators
     for(auto iter = begin; iter != end; ++iter) {
@@ -210,7 +212,7 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
                         end_iterators[j],
                         i);
             else  {
-                if (std::distance(begin_iterators[j],end_iterators[j]) > 25)
+                if (std::distance(begin_iterators[j],end_iterators[j]) > use_std_sort)
                     msd16_radix(begin_iterators[j],end_iterators[j],i);
                 else
                     std::sort(begin_iterators[j],end_iterators[j]);
