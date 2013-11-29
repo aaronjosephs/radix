@@ -8,6 +8,7 @@
 #include "../cxx-prettyprint/prettyprint.hpp"
 #include <assert.h>
 #include <thread>
+#include <future>
 
 using uint = unsigned int; 
 
@@ -101,7 +102,6 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
     auto lower = begin;
     while (upper != lower) {
         if ( ((1<<i) & *lower) == 0 ) {
-            //std::iter_swap(temp,begin);
             ++lower;
         }
         else {
@@ -112,8 +112,6 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
     if (i == 0) return;
     if (((1<<i)&*lower)==0) ++lower;
     --i;
-    std::thread t1;
-    std::thread t2;
     if (begin != lower) {
         msd_radix(begin,lower,i);
     }
@@ -121,6 +119,50 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
         msd_radix(lower,end,i);
     }
 }
+//inplace sort
+template <typename Iter>
+void msd16_radix(Iter begin, Iter end, int i = 7) {
+    std::array<uint,16> digit_count;digit_count.fill(0);
+    //count the occurence of each digit to place the iterators
+    for(auto iter = begin; iter != end; ++iter) {
+        ++(digit_count[(*iter >> (i * 4)) & 0xF]);
+    }
+    std::array<Iter,16> begin_iterators;
+    std::array<Iter,16> end_iterators;
+    {
+        size_t index = 0;
+        //create the begin and end iterators
+        for (size_t j = 0; j < 16; ++j) {
+            begin_iterators[j] = begin + index;
+            index += digit_count[j];
+            end_iterators[j] = begin + index;
+        }
+    }
+    //assert(end_iterators.back()==end);
+    {
+        auto temp_iters = begin_iterators;
+        size_t current_bin = 0;
+        while (current_bin != 15) {
+            if (temp_iters[current_bin] == end_iterators[current_bin]) {
+                ++current_bin;
+                continue;
+            }
+            size_t index = (*(temp_iters[current_bin]) >> (i*4)) & 0xF;
+            std::iter_swap(temp_iters[current_bin],temp_iters[index]);
+            ++(temp_iters[index]);
+        }
+    }
+    if (i == 0) return;
+    --i;
+    for (size_t j = 0; j < 16; ++j) {
+        if(begin_iterators[j] != end_iterators[j]) {
+            msd16_radix(begin_iterators[j],end_iterators[j],i);
+        }
+    }
+    //figure out a way to process
+}
+
+
 int main() {
     //create arrays
     std::vector<uint> v1;
@@ -136,13 +178,13 @@ int main() {
 
     //test with radix_sort
     auto start = std::chrono::system_clock::now();
-    radix_sort(v1.begin(),v1.end());
+    //radix_sort(v1.begin(),v1.end());
     //radix_sort(v1);
-    //msd_radix(v1.begin(),v1.end());
+    msd16_radix(v1.begin(),v1.end());
     auto end = std::chrono::system_clock::now();
     auto radix_time = (end-start).count();
     //
-    
+    //std::cout << v1 << std::endl; 
     //test with sort
     start = std::chrono::system_clock::now();
     std::sort(v2.begin(),v2.end());
@@ -158,6 +200,7 @@ int main() {
     //
     
     //check successful sort
+    //std::cout<<v1<<std::endl;
     for (size_t i = 0; i < v1.size(); ++i) {
         assert(v2[i]==v1[i]);
     }
