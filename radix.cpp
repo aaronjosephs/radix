@@ -194,9 +194,9 @@ int main() {
     //
 
     //test with parallel msd inplace radix sort
-    auto start = std::chrono::system_clock::now();
+    start = std::chrono::system_clock::now();
     msd16_radix(v4.begin(),v4.end());
-    auto end = std::chrono::system_clock::now();
+    end = std::chrono::system_clock::now();
     auto parallel_radix_time = (end-start).count();
     //
 
