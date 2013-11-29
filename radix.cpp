@@ -209,7 +209,12 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
                         begin_iterators[j],
                         end_iterators[j],
                         i);
-            else msd16_radix(begin_iterators[j],end_iterators[j],i);
+            else  {
+                if (std::distance(begin_iterators[j],end_iterators[j]) > 25)
+                    msd16_radix(begin_iterators[j],end_iterators[j],i);
+                else
+                    std::sort(begin_iterators[j],end_iterators[j]);
+            }
         }
     }
     for (auto & t : threads) t.join();
