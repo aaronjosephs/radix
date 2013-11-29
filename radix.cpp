@@ -36,6 +36,7 @@ void radix_sort(std::vector<uint> & list, const uint & max_digits=8) {
         }
     }
 }
+
 //could defintely optimize more by not copying back to the original vector 
 //every time 
 //with iterators, to fit stdlib pattern
@@ -96,6 +97,7 @@ void radix_sort_binary(std::vector<uint> & list) {
         ones.clear();
     }
 }
+
 template <typename Iter>
 void msd_radix(Iter begin, Iter end, int i = 31) {
     auto upper = end - 1;
@@ -119,6 +121,7 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
         msd_radix(lower,end,i);
     }
 }
+
 //inplace sort
 template <typename Iter>
 void msd16_radix(Iter begin, Iter end, int i = 7) {
@@ -138,7 +141,6 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
             end_iterators[j] = begin + index;
         }
     }
-    //assert(end_iterators.back()==end);
     {
         auto temp_iters = begin_iterators;
         size_t current_bin = 0;
@@ -166,11 +168,11 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
         }
     }
     for (auto & t : threads) t.join();
-    //figure out a way to process
 }
 
 
 int main() {
+
     //create arrays
     std::vector<uint> v1;
     std::random_device rd;
@@ -181,17 +183,23 @@ int main() {
     }
     auto v2 = v1;
     auto v3 = v1;
+    auto v4 = v1;
     //
 
     //test with radix_sort
     auto start = std::chrono::system_clock::now();
-    //radix_sort(v1.begin(),v1.end());
-    //radix_sort(v1);
-    msd16_radix(v1.begin(),v1.end());
+    radix_sort(v1.begin(),v1.end());
     auto end = std::chrono::system_clock::now();
     auto radix_time = (end-start).count();
     //
-    //std::cout << v1 << std::endl; 
+
+    //test with parallel msd inplace radix sort
+    auto start = std::chrono::system_clock::now();
+    msd16_radix(v4.begin(),v4.end());
+    auto end = std::chrono::system_clock::now();
+    auto parallel_radix_time = (end-start).count();
+    //
+
     //test with sort
     start = std::chrono::system_clock::now();
     std::sort(v2.begin(),v2.end());
@@ -207,17 +215,20 @@ int main() {
     //
     
     //check successful sort
-    //std::cout<<v1<<std::endl;
     for (size_t i = 0; i < v1.size(); ++i) {
         assert(v2[i]==v1[i]);
     }
 
     //prevent sorts from being optimized out
+    std::cout << "Ignore these numbers they are printed to prevent optimizations\n";
     std::cout << v1.back() << std::endl;
     std::cout << v2.back() << std::endl;
     std::cout << v3.back() << std::endl;
+    std::cout << v4.back() << std::endl;
 
     std::cout << "radix took: " << radix_time << std::endl;
+    std::cout << "parallelied msd inplace radix sort took: " 
+        << parallel_radix_time << std::endl;
     std::cout << "std::sort took: " << std_sort_time << std::endl;
     std::cout << "std::stable_sort took: " << std_stable_sort_time << std::endl;
     return 0;
