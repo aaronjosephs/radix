@@ -154,11 +154,18 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
     }
     if (i == 0) return;
     --i;
+    std::vector<std::thread> threads;
     for (size_t j = 0; j < 16; ++j) {
         if(begin_iterators[j] != end_iterators[j]) {
-            msd16_radix(begin_iterators[j],end_iterators[j],i);
+            if (i > 4)
+                threads.emplace_back(msd16_radix<Iter>,
+                        begin_iterators[j],
+                        end_iterators[j],
+                        i);
+            else msd16_radix(begin_iterators[j],end_iterators[j],i);
         }
     }
+    for (auto & t : threads) t.join();
     //figure out a way to process
 }
 
