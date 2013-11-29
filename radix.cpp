@@ -68,13 +68,13 @@ void radix_sort(Iter begin, Iter end, const uint & max_digits=8) {
 
 //Super optimized attempt, no copy back to vector
 //emphasis on attempt
-std::array<std::vector<uint>,16>
-opt_radix_sort(std::array<std::vector<uint>,16> & buckets, uint i);
+std::vector<std::vector<uint>>
+opt_radix_sort(std::vector<std::vector<uint>> & buckets, uint i);
 
 template <typename Iter>
 void opt_radix_sort(Iter begin, Iter end) {
     //default of 8 is the max number of hex digits in an unsigned int 
-    std::array<std::vector<uint>,16> buckets;
+    std::vector<std::vector<uint>> buckets(16);
     for (auto & v : buckets) v.reserve(std::distance(begin,end)/16 * 2); 
 
     //create the first bucket
@@ -84,25 +84,24 @@ void opt_radix_sort(Iter begin, Iter end) {
         buckets[index].emplace_back(*temp);
     }
 
-    auto results = opt_radix_sort(buckets,1); //get the final bucket
-    //start off with 1, 0 is already done
+    for (int i = 1; i < 8; ++i) {
+        buckets = opt_radix_sort(buckets,i);
+    }
 
     //put it back into the vector
-    auto temp = begin;
-    for (auto & v : results) {
+    for (auto & v : buckets) {
         for (const auto & num : v ) {
-            *temp= num;
-            ++temp;
+            *begin= num;
+            ++begin;
         }
-        v.clear();
     }
 }
 
-std::array<std::vector<uint>,16>
-opt_radix_sort(std::array<std::vector<uint>,16> & buckets, uint i) {
-    std::array<std::vector<uint>,16> next_buckets;
+std::vector<std::vector<uint>>
+opt_radix_sort(std::vector<std::vector<uint>> & buckets, uint i) {
+    std::vector<std::vector<uint>> next_buckets(16);
     //create next bucket
-    for (auto & v : next_buckets) v.reserve(buckets.front().size() * 3); 
+    for (auto & v : next_buckets) v.reserve(buckets.front().size() * 2); 
     for (const auto & v : buckets) {
         for (const auto & num : v) {
             size_t shift = i * 4;
@@ -110,18 +109,7 @@ opt_radix_sort(std::array<std::vector<uint>,16> & buckets, uint i) {
             next_buckets[index].emplace_back(num);
         }
     }
-    if (i == 7 ) { //did the max shift
-        return next_buckets;
-    }
-    else {
-        //reduce memory usage
-        for (auto & v : buckets) {
-            v.clear();
-            v.shrink_to_fit();
-        }
-        return opt_radix_sort(next_buckets,i+1);
-        //do the next level of shifting
-    }
+    return next_buckets;
 }
 //
 
@@ -245,7 +233,8 @@ int main() {
 
     //test with radix_sort
     auto start = std::chrono::system_clock::now();
-    opt_radix_sort(v1.begin(),v1.end());
+    //opt_radix_sort(v1.begin(),v1.end());
+    radix_sort(v1.begin(),v1.end());
     auto end = std::chrono::system_clock::now();
     auto radix_time = (end-start).count();
     //
@@ -274,6 +263,7 @@ int main() {
     //check successful sort
     for (size_t i = 0; i < v1.size(); ++i) {
         assert(v2[i]==v1[i]);
+        assert(v2[i]==v4[i]);
     }
 
     //prevent sorts from being optimized out
@@ -284,7 +274,7 @@ int main() {
     std::cout << v4.back() << std::endl;
 
     std::cout << "radix took: " << radix_time << std::endl;
-    std::cout << "parallelied msd inplace radix sort took: " 
+    std::cout << "parallelized msd inplace radix sort took: " 
         << parallel_radix_time << std::endl;
     std::cout << "std::sort took: " << std_sort_time << std::endl;
     std::cout << "std::stable_sort took: " << std_stable_sort_time << std::endl;
