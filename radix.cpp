@@ -40,25 +40,28 @@ void radix_sort(std::vector<uint> & list, const uint & max_digits=8) {
 //could defintely optimize more by not copying back to the original vector 
 //every time 
 //with iterators, to fit stdlib pattern
-constexpr uint num_digits(const uint & num, uint count = 0, uint shift = 0) {
-    return shift == 32 ?
+template <typename Integral>
+constexpr Integral num_digits(const Integral & num, Integral count = 0, Integral shift = 0) {
+    return shift == sizeof(Integral) * 8 ?
     count
     : num_digits(num,count+static_cast<bool>(num&(1<<shift)),shift + 1);
 }
 //base 256 seems to be the fastest after testing
-template <typename Iter, uint Radix=256>
-void radix_sort(Iter begin, Iter end, const uint & max_digits=32/num_digits(Radix-1)) {
+template <typename Iter, typename Integral = unsigned int, Integral Radix=256>
+void radix_sort(Iter begin, 
+        Iter end, 
+        const Integral & max_digits = sizeof(Integral) * 8 / num_digits(Radix-1)) {
 
     static_assert(((Radix - 1) & Radix) == 0,"Check that radix is a power of 2");
-    //static_assert((32%num_digits(Radix-1))==0,"check that the radix works with 32 bits");
+    static_assert(((sizeof(Integral) * 8) % num_digits(Radix-1))==0,
+            "check that the radix works with 32 bits");
 
     //default of 8 is the max number of hex digits in an unsigned int
-    std::array<std::vector<uint>,Radix> buckets;
+    std::array<std::vector<Integral>,Radix> buckets;
     for (auto & v : buckets) v.reserve(std::distance(begin,end)/Radix * 2);
     //reserve double the avg bucket size
     //go through each digit
-    //for (int i = 0; i < max_digits; ++i) {
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < max_digits; ++i) {
         //put into buckets based on lsd
         for (auto temp = begin; temp != end; ++temp) {
             size_t shift = i * num_digits(Radix-1);
@@ -141,8 +144,8 @@ void msd16_radix(Iter begin, Iter end) {
 template <typename Iter>
 void msd16_radix_impl(Iter begin, Iter end, const uint & size, int i) {
     const size_t use_std_sort = 30;
-    //30 seemed to be a good threshold to use
-    std::array<uint,16> digit_count;digit_count.fill(0);
+    //30 seemed to be a good threshold to use, form some testing
+    std::array<uint,16> digit_count{};
     //count the occurence of each digit to place the iterators
     for(auto iter = begin; iter != end; ++iter) {
         ++(digit_count[(*iter >> (i * 4)) & 0xF]);
@@ -177,6 +180,8 @@ void msd16_radix_impl(Iter begin, Iter end, const uint & size, int i) {
     for (size_t j = 0; j < 16; ++j) {
         if(begin_iterators[j] != end_iterators[j]) {
             if (std::distance(begin_iterators[j],end_iterators[j]) > size/100) {
+                //should use std::thread::hardware_concurrency() to decide
+                //how many threads to create 
                 threads.emplace_back(msd16_radix_impl<Iter>,
                         begin_iterators[j],
                         end_iterators[j],
@@ -225,7 +230,7 @@ int main() {
     auto parallel_radix_time = (end-start).count();
     //
 
-    //test with sort
+    //test with std::sort
     start = std::chrono::system_clock::now();
     std::sort(v2.begin(),v2.end());
     end = std::chrono::system_clock::now();
@@ -257,5 +262,17 @@ int main() {
         << parallel_radix_time << std::endl;
     std::cout << "std::sort took: " << std_sort_time << std::endl;
     std::cout << "std::stable_sort took: " << std_stable_sort_time << std::endl;
+/* 
+    std::vector<unsigned long> v;
+    std::random_device rd1;
+    std::default_random_engine eng1(rd1());
+    std::uniform_int_distribution<unsigned long> dist1(1,0xFFFF);
+    for (int i = 0; i < 5000000; ++i) {
+        v.push_back(dist1(eng1));
+    }
+    radix_sort(v.begin(),v.end());
+    std::cout << v << std::endl;
+*/
+//test for 64 bit numbers
     return 0;
 }
