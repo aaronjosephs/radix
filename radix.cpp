@@ -77,54 +77,6 @@ void radix_sort(Iter begin, Iter end, const uint & max_digits=32/num_digits(Radi
     }
 }
 
-//Super optimized attempt, no copy back to vector
-//emphasis on attempt
-std::vector<std::vector<uint>>
-opt_radix_sort(std::vector<std::vector<uint>> & buckets, uint i);
-
-template <typename Iter>
-void opt_radix_sort(Iter begin, Iter end) {
-    //default of 8 is the max number of hex digits in an unsigned int 
-    std::vector<std::vector<uint>> buckets(16);
-    for (auto & v : buckets) v.reserve(std::distance(begin,end)/16 * 2); 
-
-    //create the first bucket
-    for (auto temp = begin; temp != end; ++temp) {
-        size_t shift = 0;
-        size_t index = (*temp >> shift) & 0xF; 
-        buckets[index].emplace_back(*temp);
-    }
-
-    for (int i = 1; i < 8; ++i) {
-        buckets = opt_radix_sort(buckets,i);
-    }
-
-    //put it back into the vector
-    for (auto & v : buckets) {
-        for (const auto & num : v ) {
-            *begin= num;
-            ++begin;
-        }
-    }
-}
-
-std::vector<std::vector<uint>>
-opt_radix_sort(std::vector<std::vector<uint>> & buckets, uint i) {
-    std::vector<std::vector<uint>> next_buckets(16);
-    //create next bucket
-    for (auto & v : next_buckets) v.reserve(buckets.front().size() * 2); 
-    for (const auto & v : buckets) {
-        for (const auto & num : v) {
-            size_t shift = i * 4;
-            size_t index = (num >> shift) & 0xF;
-            next_buckets[index].emplace_back(num);
-        }
-    }
-    return next_buckets;
-}
-//
-
-
 
 //not nearly as fast as hex
 void radix_sort_binary(std::vector<uint> & list) {
@@ -250,7 +202,7 @@ int main() {
     std::random_device rd;
     std::default_random_engine eng(rd());
     std::uniform_int_distribution<uint> dist(1,0xFFFFFFFF);
-    for (int i = 0; i < 500000; ++i) {
+    for (int i = 0; i < 5000000; ++i) {
         v1.push_back(dist(eng));
     }
     auto v2 = v1;
