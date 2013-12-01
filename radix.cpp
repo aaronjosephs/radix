@@ -40,18 +40,29 @@ void radix_sort(std::vector<uint> & list, const uint & max_digits=8) {
 //could defintely optimize more by not copying back to the original vector 
 //every time 
 //with iterators, to fit stdlib pattern
-template <typename Iter>
-void radix_sort(Iter begin, Iter end, const uint & max_digits=8) {
-    //default of 8 is the max number of hex digits in an unsigned int 
-    std::array<std::vector<uint>,16> buckets;
-    for (auto & v : buckets) v.reserve(std::distance(begin,end)/16 * 2); 
-    //reserve double the avg bucket size 
+constexpr uint num_digits(const uint & num, uint count = 0, uint shift = 0) {
+    return shift == 32 ?
+    count
+    : num_digits(num,count+static_cast<bool>(num&(1<<shift)),shift + 1);
+}
+//base 256 seems to be the fastest after testing
+template <typename Iter, uint Radix=256>
+void radix_sort(Iter begin, Iter end, const uint & max_digits=32/num_digits(Radix-1)) {
+
+    static_assert(((Radix - 1) & Radix) == 0,"Check that radix is a power of 2");
+    //static_assert((32%num_digits(Radix-1))==0,"check that the radix works with 32 bits");
+
+    //default of 8 is the max number of hex digits in an unsigned int
+    std::array<std::vector<uint>,Radix> buckets;
+    for (auto & v : buckets) v.reserve(std::distance(begin,end)/Radix * 2);
+    //reserve double the avg bucket size
     //go through each digit
-    for (int i = 0; i < max_digits; ++i) { 
+    //for (int i = 0; i < max_digits; ++i) {
+    for (int i = 0; i < 4; ++i) {
         //put into buckets based on lsd
         for (auto temp = begin; temp != end; ++temp) {
-            size_t shift = i * 4;
-            size_t index = (*temp >> shift) & 0xF; 
+            size_t shift = i * num_digits(Radix-1);
+            size_t index = (*temp >> shift) & (Radix-1);
             buckets[index].emplace_back(*temp);
         }
         //put back into vector
@@ -117,7 +128,6 @@ opt_radix_sort(std::vector<std::vector<uint>> & buckets, uint i) {
 
 //not nearly as fast as hex
 void radix_sort_binary(std::vector<uint> & list) {
-    uint pows = 1;
     for (int i = 0; i < 32; ++i) {
         std::vector<uint> zeroes;
         std::vector<uint> ones;
