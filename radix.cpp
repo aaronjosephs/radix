@@ -179,7 +179,15 @@ void msd_radix(Iter begin, Iter end, int i = 31) {
 
 //inplace sort
 template <typename Iter>
-void msd16_radix(Iter begin, Iter end, int i = 7) {
+void msd16_radix_impl(Iter begin, Iter end, const uint & size, int i);
+
+template <typename Iter>
+void msd16_radix(Iter begin, Iter end) {
+    msd16_radix_impl<Iter>(begin,end,std::distance(begin,end),7);
+}
+
+template <typename Iter>
+void msd16_radix_impl(Iter begin, Iter end, const uint & size, int i) {
     const size_t use_std_sort = 30;
     //30 seemed to be a good threshold to use
     std::array<uint,16> digit_count;digit_count.fill(0);
@@ -216,14 +224,16 @@ void msd16_radix(Iter begin, Iter end, int i = 7) {
     std::vector<std::thread> threads;
     for (size_t j = 0; j < 16; ++j) {
         if(begin_iterators[j] != end_iterators[j]) {
-            if (i > 4)
-                threads.emplace_back(msd16_radix<Iter>,
+            if (std::distance(begin_iterators[j],end_iterators[j]) > size/100) {
+                threads.emplace_back(msd16_radix_impl<Iter>,
                         begin_iterators[j],
                         end_iterators[j],
+                        size,
                         i);
+            }
             else  {
                 if (std::distance(begin_iterators[j],end_iterators[j]) > use_std_sort)
-                    msd16_radix(begin_iterators[j],end_iterators[j],i);
+                    msd16_radix_impl(begin_iterators[j],end_iterators[j],size,i);
                 else
                     std::sort(begin_iterators[j],end_iterators[j]);
             }
@@ -240,7 +250,7 @@ int main() {
     std::random_device rd;
     std::default_random_engine eng(rd());
     std::uniform_int_distribution<uint> dist(1,0xFFFFFFFF);
-    for (int i = 0; i < 5000000; ++i) {
+    for (int i = 0; i < 500000; ++i) {
         v1.push_back(dist(eng));
     }
     auto v2 = v1;
