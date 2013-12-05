@@ -208,29 +208,34 @@ template <typename Iter>
 void string_radix_sort(Iter begin, Iter end) {
     string_radix_sort_impl<Iter>(begin,end,std::distance(begin,end),0);
 }
-
+//seg faults at about 50k, I think I'm just using too much memory
 template <typename Iter>
 void string_radix_sort_impl(Iter begin, Iter end, const uint & size, size_t i) {
-    const size_t use_std_sort = 30;
-    //30 seemed to be a good threshold to use, form some testing
-    std::array<uint,256> char_count{};
-    //count the occurence of each char to place the iterators
-    for(auto iter = begin; iter != end; ++iter) {
-        const auto & str = *iter;
-        if (i < str.size()) {
-            ++(char_count[static_cast<size_t>(str[i])]);
-        }
-        else ++char_count[0]; //count past end same as null char 
-    }
-    std::array<Iter,256> begin_iterators;
-    std::array<Iter,256> end_iterators;
+    const size_t use_std_sort = 1000;
+    //30 is better, but it seems that any lower and with large ranges radix sort
+    //just uses too much memory
+
+    std::vector<Iter> begin_iterators(256);
+    std::vector<Iter> end_iterators(256);
     {
-        size_t index = 0;
-        //create the begin and end iterators
-        for (size_t j = 0; j < 256; ++j) {
-            begin_iterators[j] = begin + index;
-            index += char_count[j];
-            end_iterators[j] = begin + index;
+        //30 seemed to be a good threshold to use, form some testing
+        std::array<uint,256> char_count{}; //segfaults here on large inputs
+        //count the occurence of each char to place the iterators
+        for(auto iter = begin; iter != end; ++iter) {
+            const auto & str = *iter;
+            if (i < str.size()) {
+                ++(char_count[static_cast<size_t>(str[i])]);
+            }
+            else ++char_count[0]; //count past end same as null char 
+        }
+        {
+            size_t index = 0;
+            //create the begin and end iterators
+            for (size_t j = 0; j < 256; ++j) {
+                begin_iterators[j] = begin + index;
+                index += char_count[j];
+                end_iterators[j] = begin + index;
+            }
         }
     }
     {
@@ -243,14 +248,12 @@ void string_radix_sort_impl(Iter begin, Iter end, const uint & size, size_t i) {
             }
             const auto & str = *(temp_iters[current_bin]);
             size_t index = i < str.size() ? str[i] : 0;
-                //(*(temp_iters[current_bin]) >> (i*4)) & 0xF;
             std::iter_swap(temp_iters[current_bin],temp_iters[index]);
             ++(temp_iters[index]);
         }
     }
-    //if (i == 0) return;
     ++i;
-    std::vector<std::thread> threads;
+    //std::vector<std::thread> threads;
     for (size_t j = 0; j < 256; ++j) {
         /*
         if(begin_iterators[j] != end_iterators[j]) {
@@ -280,7 +283,7 @@ void string_radix_sort_impl(Iter begin, Iter end, const uint & size, size_t i) {
         }
 
     }
-    for (auto & t : threads) t.join();
+    //for (auto & t : threads) t.join();
 }
 int main() {
 
@@ -337,7 +340,7 @@ int main() {
     std::cout << v1.back() << std::endl;
     std::cout << v2.back() << std::endl;
     std::cout << v3.back() << std::endl;
-    std::cout << v4.back() << std::endl;
+    std::cout << v4.back() << std::endl << std::endl;
 
     std::cout << "radix took: " << radix_time << std::endl;
     std::cout << "parallelized msd inplace radix sort took: " 
@@ -356,15 +359,15 @@ int main() {
     radix_sort(v.begin(),v.end());
     std::cout << v << std::endl;
     */{
-        std::cout << "\n\nTest for string radix sort vs std::sort\n";
+        std::cout << "\nTest for string radix sort vs std::sort\n";
         //create arrays
         std::vector<std::string> s1;
         std::random_device rd;
         std::default_random_engine eng1(rd());
         std::default_random_engine eng2(rd());
         std::uniform_int_distribution<uint> length_dist(1,20);
-        std::uniform_int_distribution<unsigned char> char_dist(33,123);
-        for (int i = 0; i < 5000; ++i) {
+        std::uniform_int_distribution<unsigned char> char_dist(33,127);
+        for (int i = 0; i < 500000; ++i) {
             std::string str;
             auto len = length_dist(eng1);
             for (int j = 0; j < len; ++j) {
