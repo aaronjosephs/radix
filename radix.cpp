@@ -5,6 +5,7 @@
 #include <chrono>
 #include <algorithm>
 #include <iterator>
+#include <string>
 #include "../cxx-prettyprint/prettyprint.hpp"
 #include <assert.h>
 #include <thread>
@@ -199,7 +200,88 @@ void msd16_radix_impl(Iter begin, Iter end, const uint & size, int i) {
     for (auto & t : threads) t.join();
 }
 
+//for arbitrary length strings
+template <typename Iter>
+void string_radix_sort_impl(Iter begin, Iter end, const uint & size, size_t i);
 
+template <typename Iter>
+void string_radix_sort(Iter begin, Iter end) {
+    string_radix_sort_impl<Iter>(begin,end,std::distance(begin,end),0);
+}
+
+template <typename Iter>
+void string_radix_sort_impl(Iter begin, Iter end, const uint & size, size_t i) {
+    const size_t use_std_sort = 30;
+    //30 seemed to be a good threshold to use, form some testing
+    std::array<uint,256> char_count{};
+    //count the occurence of each char to place the iterators
+    for(auto iter = begin; iter != end; ++iter) {
+        const auto & str = *iter;
+        if (i < str.size()) {
+            ++(char_count[static_cast<size_t>(str[i])]);
+        }
+        else ++char_count[0]; //count past end same as null char 
+    }
+    std::array<Iter,256> begin_iterators;
+    std::array<Iter,256> end_iterators;
+    {
+        size_t index = 0;
+        //create the begin and end iterators
+        for (size_t j = 0; j < 256; ++j) {
+            begin_iterators[j] = begin + index;
+            index += char_count[j];
+            end_iterators[j] = begin + index;
+        }
+    }
+    {
+        auto temp_iters = begin_iterators;
+        size_t current_bin = 0;
+        while (current_bin != 255) {
+            if (temp_iters[current_bin] == end_iterators[current_bin]) {
+                ++current_bin;
+                continue;
+            }
+            const auto & str = *(temp_iters[current_bin]);
+            size_t index = i < str.size() ? str[i] : 0;
+                //(*(temp_iters[current_bin]) >> (i*4)) & 0xF;
+            std::iter_swap(temp_iters[current_bin],temp_iters[index]);
+            ++(temp_iters[index]);
+        }
+    }
+    //if (i == 0) return;
+    ++i;
+    std::vector<std::thread> threads;
+    for (size_t j = 0; j < 256; ++j) {
+        /*
+        if(begin_iterators[j] != end_iterators[j]) {
+            if (std::distance(begin_iterators[j],end_iterators[j]) > size/100) {
+                //should use std::thread::hardware_concurrency() to decide
+                //how many threads to create 
+                threads.emplace_back(string_radix_sort_impl<Iter>,
+                        begin_iterators[j],
+                        end_iterators[j],
+                        size,
+                        i);
+            }
+            else  {
+                if (std::distance(begin_iterators[j],end_iterators[j]) > use_std_sort)
+                    string_radix_sort_impl(begin_iterators[j],end_iterators[j],size,i);
+                else
+                    std::sort(begin_iterators[j],end_iterators[j]);
+            }
+        }
+        */
+        //no threads right now
+        if(begin_iterators[j] != end_iterators[j]) {
+            if (std::distance(begin_iterators[j],end_iterators[j]) > use_std_sort)
+                string_radix_sort_impl(begin_iterators[j],end_iterators[j],size,i);
+            else
+                std::sort(begin_iterators[j],end_iterators[j]);
+        }
+
+    }
+    for (auto & t : threads) t.join();
+}
 int main() {
 
     //create arrays
@@ -262,6 +344,7 @@ int main() {
         << parallel_radix_time << std::endl;
     std::cout << "std::sort took: " << std_sort_time << std::endl;
     std::cout << "std::stable_sort took: " << std_stable_sort_time << std::endl;
+//test for 64 bit numbers
 /* 
     std::vector<unsigned long> v;
     std::random_device rd1;
@@ -272,7 +355,41 @@ int main() {
     }
     radix_sort(v.begin(),v.end());
     std::cout << v << std::endl;
-*/
-//test for 64 bit numbers
+    */{
+        std::cout << "\n\nTest for string radix sort vs std::sort\n";
+        //create arrays
+        std::vector<std::string> s1;
+        std::random_device rd;
+        std::default_random_engine eng1(rd());
+        std::default_random_engine eng2(rd());
+        std::uniform_int_distribution<uint> length_dist(1,20);
+        std::uniform_int_distribution<unsigned char> char_dist(33,123);
+        for (int i = 0; i < 5000; ++i) {
+            std::string str;
+            auto len = length_dist(eng1);
+            for (int j = 0; j < len; ++j) {
+                str.push_back(static_cast<char>(char_dist(eng2)));
+            }
+            s1.push_back(std::move(str));
+        }
+        auto s2 = s1;
+
+        //test std::sort
+        start = std::chrono::system_clock::now();
+        std::sort(s2.begin(),s2.end());
+        end = std::chrono::system_clock::now();
+        auto std_sort_time = (end-start).count();
+
+        start = std::chrono::system_clock::now();
+        string_radix_sort(s1.begin(),s1.end());
+        end = std::chrono::system_clock::now();
+        auto radix_string_sort_time = (end-start).count();       
+        //check successful sort
+        std::cout << "std::sort took:" << std_sort_time  << std::endl;
+        std::cout << "radix sort took:" <<radix_string_sort_time  << std::endl;
+        for (size_t i = 0; i < s1.size(); ++i) {
+            assert(s2[i]==s1[i]);
+        }
+    }
     return 0;
 }
